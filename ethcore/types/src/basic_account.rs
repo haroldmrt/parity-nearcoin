@@ -17,6 +17,7 @@
 //! Basic account type -- the decoded RLP from the state trie.
 
 use ethereum_types::{U256, H256};
+use location::Coordinates;
 
 /// Basic account type.
 #[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -29,4 +30,6 @@ pub struct BasicAccount {
 	pub storage_root: H256,
 	/// Code hash of the account.
 	pub code_hash: H256,
+	/// Location of the account (if set)
+	pub location: Option<Coordinates>,
 }

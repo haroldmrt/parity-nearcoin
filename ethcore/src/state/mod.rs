@@ -47,6 +47,8 @@ use hashdb::{HashDB, AsHashDB};
 use kvdb::DBValue;
 use bytes::Bytes;
 
+use location::Coordinates;
+
 use trie;
 use trie::{Trie, TrieError, TrieDB};
 use trie::recorder::Recorder;
@@ -681,6 +683,12 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
+	/// Set the location of account `a` so that it is `location`
+	pub fn set_location(&mut self, a: &Address, location: Coordinates) -> trie::Result<()> {
+		self.require_or_from(a, false, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.set_location(location);
+		Ok(())
+	}
+
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult<FlatTrace, VMTrace> {
@@ -881,11 +889,11 @@ impl<B: Backend> State<B> {
 					};
 
 					// Storage must be fetched after ensure_cached to avoid borrow problem.
-					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()), acc.location().clone())
 				})
 			})?;
 
-			if let Some((balance, nonce, storage_keys, code)) = account {
+			if let Some((balance, nonce, storage_keys, code, location)) = account {
 				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
 					let mut s = s?;
 
@@ -894,7 +902,7 @@ impl<B: Backend> State<B> {
 				})?;
 
 				m.insert(address, PodAccount {
-					balance, nonce, storage, code
+					balance, nonce, storage, code, location
 				});
 			}
 
@@ -1064,6 +1072,7 @@ impl<B: Backend> State<B> {
 			nonce: self.account_start_nonce,
 			code_hash: KECCAK_EMPTY,
 			storage_root: KECCAK_NULL_RLP,
+			location: None,
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))

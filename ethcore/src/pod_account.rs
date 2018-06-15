@@ -26,6 +26,7 @@ use trie::TrieFactory;
 use state::Account;
 use ethjson;
 use types::account_diff::*;
+use types::location::Coordinates;
 use rlp::{self, RlpStream};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,6 +41,8 @@ pub struct PodAccount {
 	pub code: Option<Bytes>,
 	/// The storage of the account.
 	pub storage: BTreeMap<H256, H256>,
+	/// The location of the account (if set).
+	pub location: Option<Coordinates>,
 }
 
 impl PodAccount {
@@ -51,16 +54,18 @@ impl PodAccount {
 			nonce: *acc.nonce(),
 			storage: acc.storage_changes().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code().map(|x| x.to_vec()),
+			location: acc.location().clone(),
 		}
 	}
 
 	/// Returns the RLP for this account.
 	pub fn rlp(&self) -> Bytes {
-		let mut stream = RlpStream::new_list(4);
+		let mut stream = RlpStream::new_list(5);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
 		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k, rlp::encode(&U256::from(&**v))))));
 		stream.append(&keccak(&self.code.as_ref().unwrap_or(&vec![])));
+		stream.append(&self.location);
 		stream.out()
 	}
 
@@ -91,6 +96,7 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 				let value: U256 = value.into();
 				(H256::from(key), H256::from(value))
 			}).collect(),
+			location: None, //TODO : ethjson::blockchain::Account
 		}
 	}
 }
@@ -106,11 +112,13 @@ impl From<ethjson::spec::Account> for PodAccount {
 				let value: U256 = value.into();
 				(H256::from(key), H256::from(value))
 			}).collect()),
+			location: None, //todo: same !
 		}
 	}
 }
 
 impl fmt::Display for PodAccount {
+	// TODO: display location
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)",
 			self.balance,
@@ -118,6 +126,7 @@ impl fmt::Display for PodAccount {
 			self.code.as_ref().map_or(0, |c| c.len()),
 			self.code.as_ref().map_or_else(H256::new, |c| keccak(c)),
 			self.storage.len(),
+			// self.location.map_or_else(|| Coordinates::new(), |c| c), //todo: better handling of null coord
 		)
 	}
 }
