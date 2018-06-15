@@ -818,6 +818,7 @@ impl AccountProvider {
 			to: match transaction.action {
 				Action::Create => None,
 				Action::Call(ref to) => Some(to.clone()),
+				Action::Locate => Some(Address::from("ffffffffffffffffffffffffffffffffffffffff")),
 			},
 			value: transaction.value,
 			data: transaction.data.to_vec(),

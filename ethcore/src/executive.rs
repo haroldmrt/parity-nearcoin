@@ -327,7 +327,27 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				};
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
-			}
+			},
+			// Temporary fool code
+			Action::Locate => { // (vm::Result<FinalizationResult>, Bytes)
+				let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
+				let params = ActionParams {
+					code_address: address.clone(),
+					address: address.clone(),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: init_gas,
+					gas_price: t.gas_price,
+					value: ActionValue::Transfer(t.value),
+					code: self.state.code(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
+					data: Some(t.data.clone()),
+					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
+				};
+				let mut out = vec![];
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
+			},
 		};
 
 		// finalize here!

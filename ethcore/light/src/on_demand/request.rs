@@ -836,6 +836,7 @@ impl Account {
 					balance: rlp.val_at(1)?,
 					storage_root: rlp.val_at(2)?,
 					code_hash: rlp.val_at(3)?,
+					location: None,
 				}))
 			},
 			None => Ok(None),
