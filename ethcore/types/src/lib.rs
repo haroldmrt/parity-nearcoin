@@ -46,6 +46,7 @@ pub mod trace_filter;
 pub mod tree_route;
 pub mod verification_queue_info;
 pub mod ancestry_action;
+pub mod location;
 
 /// Type for block number.
 pub type BlockNumber = u64;
