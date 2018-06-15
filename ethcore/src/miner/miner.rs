@@ -887,7 +887,8 @@ impl miner::MinerService for Miner {
 							Action::Create => {
 								let sender = tx.sender();
 								Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data).0)
-							}
+							},
+							Action::Locate => None,
 						},
 						logs: receipt.logs.clone(),
 						log_bloom: receipt.log_bloom,

@@ -43,6 +43,7 @@ pub enum Action {
 	/// Calls contract at given address.
 	/// In the case of a transfer, this is the receiver's address.'
 	Call(Address),
+	Locate,
 }
 
 impl Default for Action {
@@ -54,7 +55,12 @@ impl rlp::Decodable for Action {
 		if rlp.is_empty() {
 			Ok(Action::Create)
 		} else {
-			Ok(Action::Call(rlp.as_val()?))
+			let value = rlp.as_val()?;
+			if value == Address::from("ffffffffffffffffffffffffffffffffffffffff") {
+				Ok(Action::Locate)
+			} else {
+				Ok(Action::Call(value))
+			}
 		}
 	}
 }
@@ -64,6 +70,7 @@ impl rlp::Encodable for Action {
 		match *self {
 			Action::Create => s.append_internal(&""),
 			Action::Call(ref addr) => s.append_internal(addr),
+			Action::Locate => s.append_internal(&Address::from("ffffffffffffffffffffffffffffffffffffffff")),
 		};
 	}
 }
@@ -262,7 +269,11 @@ impl Transaction {
 
 	/// Get the transaction cost in gas for this transaction.
 	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
-		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
+		Self::gas_required_for(match self.action {
+				Action::Create=>true,
+				Action::Call(_)=>false,
+				Action::Locate=>false
+			}, &self.data, schedule)
 	}
 }
 
