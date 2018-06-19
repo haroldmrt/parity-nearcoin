@@ -34,6 +34,9 @@ use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
+use types::location::Coordinates;
+use ethereum_types::H32;
+
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)
 const STACK_SIZE_PER_DEPTH: usize = 128 * 1024;
@@ -310,7 +313,11 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut out = if output_from_create { Some(vec![]) } else { None };
 				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
-			Action::Call(ref address) => {
+			// 
+			// Temporary fool code
+			// Action::Locate | Action::Call(&Address::from("ffffffffffffffffffffffffffffffffffffffff")) =>
+			Action::Locate => { // (vm::Result<FinalizationResult>, Bytes)
+				let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
 				let params = ActionParams {
 					code_address: address.clone(),
 					address: address.clone(),
@@ -328,9 +335,26 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			},
-			// Temporary fool code
-			Action::Locate => { // (vm::Result<FinalizationResult>, Bytes)
-				let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
+			Action::Call(ref address) if address == &Address::from("ffffffffffffffffffffffffffffffffffffffff") => { // (vm::Result<FinalizationResult>, Bytes)
+				// let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
+				let params = ActionParams {
+					code_address: address.clone(),
+					address: address.clone(),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: init_gas,
+					gas_price: t.gas_price,
+					value: ActionValue::Transfer(t.value),
+					code: self.state.code(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
+					data: Some(t.data.clone()),
+					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
+				};
+				let mut out = vec![];
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
+			},
+			Action::Call(ref address) => {
 				let params = ActionParams {
 					code_address: address.clone(),
 					address: address.clone(),
@@ -414,6 +438,24 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let schedule = self.machine.schedule(self.info.number);
 
+		// temp location setting
+		// checkpoint utility ?
+		if params.address == Address::from("ffffffffffffffffffffffffffffffffffffffff") {
+			if let Some(data) = params.data { // Coordinates::from()
+				let location = Coordinates::from(H32::from_slice(&data));
+				self.state.set_location(&params.origin, location)?;
+				self.state.discard_checkpoint();
+				return Ok(FinalizationResult {
+					gas_left: params.gas,
+					return_data: ReturnData::empty(),
+					apply_state: true,
+				});
+			} else {
+				self.state.revert_to_checkpoint();
+				return Err(vm::Error::BuiltIn("Incorrect location"));
+			}
+		}
+
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
@@ -484,7 +526,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				Err(vm::Error::OutOfGas)
 			}
-		} else {
+		} else { // not builtin
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();

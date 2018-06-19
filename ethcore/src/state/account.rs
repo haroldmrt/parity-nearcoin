@@ -89,7 +89,7 @@ impl From<BasicAccount> for Account {
 			code_cache: Arc::new(vec![]),
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
-			location: None,
+			location: basic.location,
 		}
 	}
 }
@@ -131,7 +131,7 @@ impl Account {
 			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
 			address_hash: Cell::new(None),
 			// TODO : add location in podaccount
-			location: None,
+			location: pod.location,
 		}
 	}
 
@@ -477,6 +477,7 @@ impl Account {
 		self.code_cache = other.code_cache;
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
+		self.location = other.location;
 		let mut cache = self.storage_cache.borrow_mut();
 		for (k, v) in other.storage_cache.into_inner() {
 			cache.insert(k, v);
