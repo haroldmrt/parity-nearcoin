@@ -535,6 +535,12 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Get the location of account `a`
+	pub fn location(&self, a: &Address) -> trie::Result<Coordinates> {
+		self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().map_or(Coordinates::new(), |account| account.location().clone().unwrap_or(Coordinates::new())))
+	}
+
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> trie::Result<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -648,10 +654,20 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
+	/// Compute distance between location of accounts `a` and `b`.
+	pub fn distance(&mut self, a: &Address, b: &Address) -> trie::Result<U256> {
+		let loc_a = self.location(a).unwrap(); // what is the error ?
+		let loc_b = self.location(b).unwrap();
+		Ok(U256::from(loc_a.distance(&loc_b)))
+	}
+
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to` after geographic demirrage.
+	/// Arithmetic operations are not necessarly consensus-safe
 	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
-		self.add_balance(to, by, cleanup_mode)?;
+		let d = self.distance(from, to).unwrap();
+		let amount = (U256::from(1000) - d) * *by / U256::from(1000);
+		self.add_balance(to, &amount, cleanup_mode)?;
 		Ok(())
 	}
 
