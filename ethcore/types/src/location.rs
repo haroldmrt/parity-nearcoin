@@ -43,7 +43,10 @@ impl rlp::Encodable for Coordinates {
 impl rlp::Decodable for Coordinates {
     fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
         if rlp.is_empty() {
+            // Do we accept coordinates {0, 0} (-90, -180) ?
+            // tied to Executive::call
             Err(rlp::DecoderError::Custom("Empty location"))
+            // Ok(Coordinates::new())
         } else {
             let value: u32 = rlp.as_val()?;
 

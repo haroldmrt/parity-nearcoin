@@ -536,6 +536,7 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Get the location of account `a`
+	/// TODO: return error instead of {0, 0}
 	pub fn location(&self, a: &Address) -> trie::Result<Coordinates> {
 		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(Coordinates::new(), |account| account.location().clone().unwrap_or(Coordinates::new())))
@@ -661,7 +662,7 @@ impl<B: Backend> State<B> {
 		Ok(U256::from(loc_a.distance(&loc_b)))
 	}
 
-	/// Subtracts `by` from the balance of `from` and adds it to that of `to` after geographic demirrage.
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to` after geographic demurrage.
 	/// Arithmetic operations are not necessarly consensus-safe
 	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
