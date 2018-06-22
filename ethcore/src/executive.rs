@@ -442,6 +442,14 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		// checkpoint utility ?
 		if params.address == Address::from("ffffffffffffffffffffffffffffffffffffffff") {
 			if let Some(data) = params.data { // Coordinates::from()
+				if data.len() != 4 {
+					self.state.revert_to_checkpoint();
+					return Err(vm::Error::BuiltIn("Incorrect location"));
+				}
+				if data == [0, 0, 0, 0] {
+					self.state.revert_to_checkpoint();
+					return Err(vm::Error::BuiltIn("Cannot set empty location")); // empty location is None not Some({0, 0})
+				}
 				let location = Coordinates::from(H32::from_slice(&data));
 				self.state.set_location(&params.origin, location)?;
 				self.state.discard_checkpoint();
@@ -458,6 +466,30 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
+			// sender or origin ? 
+			// TODO: error instead of {0, 0}
+			// if let Err(_) = self.state.location(&params.sender) {
+			if val != U256::from(0) {
+				if self.state.location(&params.sender).unwrap() == Coordinates::new() {
+					self.state.revert_to_checkpoint();
+					return Ok(FinalizationResult {
+						gas_left: params.gas,
+						return_data: ReturnData::empty(),
+						apply_state: false,
+					})
+					// return Err(vm::Error::BuiltIn("Sender have no location"));
+				}
+				// if let Err(_) = self.state.location(&params.address) {
+				if self.state.location(&params.address).unwrap() == Coordinates::new() {
+					self.state.revert_to_checkpoint();
+					return Ok(FinalizationResult {
+						gas_left: params.gas,
+						return_data: ReturnData::empty(),
+						apply_state: false,
+					})
+					// return Err(vm::Error::BuiltIn("Receiver have no location"));
+				}
+			}
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
 		}
 
