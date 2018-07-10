@@ -48,6 +48,7 @@ use kvdb::DBValue;
 use bytes::Bytes;
 
 use location::Coordinates;
+use self::validators::ValidatorSet;
 
 use trie;
 use trie::{Trie, TrieError, TrieDB};
@@ -55,6 +56,7 @@ use trie::recorder::Recorder;
 
 mod account;
 mod substate;
+mod validators;
 
 pub mod backend;
 
@@ -315,6 +317,7 @@ pub struct State<B: Backend> {
 	checkpoints: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
+	validator_set: ValidatorSet,
 }
 
 #[derive(Copy, Clone)]
@@ -377,6 +380,7 @@ impl<B: Backend> State<B> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
+			validator_set: ValidatorSet::new(),
 		}
 	}
 
@@ -392,7 +396,8 @@ impl<B: Backend> State<B> {
 			cache: RefCell::new(HashMap::new()),
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			factories: factories
+			factories: factories,
+			validator_set: ValidatorSet::new(),
 		};
 
 		Ok(state)
@@ -538,7 +543,8 @@ impl<B: Backend> State<B> {
 	/// Get the location of account `a`
 	/// TODO: return error instead of {0, 0}
 	pub fn location(&self, a: &Address) -> trie::Result<Coordinates> {
-		self.ensure_cached(a, RequireCache::None, true,
+		// check_null = false because account is null before first tx
+		self.ensure_cached(a, RequireCache::None, false,
 			|a| a.as_ref().map_or(Coordinates::new(), |account| account.location().clone().unwrap_or(Coordinates::new())))
 	}
 
@@ -668,6 +674,8 @@ impl<B: Backend> State<B> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
 		let d = self.distance(from, to).unwrap();
 		let amount = (U256::from(1000) - d) * *by / U256::from(1000);
+		// demurred amount = by - amount
+		// self.add_balance(0xffffff, demurred_amount, cleanup_mode)
 		self.add_balance(to, &amount, cleanup_mode)?;
 		Ok(())
 	}
@@ -700,10 +708,16 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
+	/// Check if account `a` is a registered validator
+	pub fn is_validator(&self, a: &Address) -> bool {
+		self.validator_set.is_validator(a)
+	}
+
 	/// Set the location of account `a` so that it is `location`
 	pub fn set_location(&mut self, a: &Address, location: Coordinates) -> trie::Result<()> {
-		self.require_or_from(a, false, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.set_location(location);
-		Ok(())
+		// self.require_or_from(a, false, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.set_location(location);
+		// Ok(())
+		self.require(a, false).map(|mut x| x.set_location(location))
 	}
 
 	/// Execute a given transaction, producing a receipt and an optional trace.
@@ -991,6 +1005,7 @@ impl<B: Backend> State<B> {
 			Some(r) => Ok(r),
 			None => {
 				// first check if it is not in database for sure
+				// better solution: use self.db.add_to_account_cache when setting loc on a new account 
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
 				// not found in the global cache, get from the DB and insert into local
@@ -1142,6 +1157,7 @@ impl Clone for State<StateDB> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
+			validator_set: self.validator_set.clone(),
 		}
 	}
 }
