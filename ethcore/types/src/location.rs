@@ -1,6 +1,7 @@
 use ethereum_types::{H32};
 use rlp;
 use std::fmt;
+use std::f64::consts::PI;
 
 /// Type containing geographic coordinates as integers
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -70,16 +71,16 @@ impl fmt::Display for Coordinates {
 
 
 /// Approximate earth radius: allow a precision up to 1mm
-static R: f64 = 6371 as f64;
+static R: f64 = 6371.0;
 
 /// Maximum unsigned 16 bit integer
-static U16_MAX: f64 = 65536 as f64;
+static U16_MAX: f64 = 65535.0;
 
-/// Amplitude of lat value in degrees
-static DELTA_LAT: f64 = 180 as f64;
+/// Amplitude of lat value in radian
+static DELTA_LAT: f64 = PI;
 
-/// Amplitude of lng value in degrees
-static DELTA_LNG: f64 = 360 as f64;
+/// Amplitude of lng value in radian
+static DELTA_LNG: f64 =  2.0 * PI;
 
 impl Coordinates {
     /// Constructor
@@ -90,17 +91,19 @@ impl Coordinates {
     /// Compute distance with Haversine formula between self and argument
     /// TODO : make the computation consensus-safe (through builtin ?)
     pub fn distance(&self, coord: &Coordinates) -> u16 {
-        haversine_dist(self.lat as f64 * DELTA_LAT / U16_MAX - 90 as f64, self.lng as f64 * DELTA_LNG / U16_MAX - 180 as f64, coord.lat as f64 * DELTA_LAT / U16_MAX - 90 as f64, coord.lng as f64 * DELTA_LNG / U16_MAX - 180 as f64) as u16
+        haversine_dist(
+            self.lat as f64 * DELTA_LAT / U16_MAX - PI / 2.0,
+            self.lng as f64 * DELTA_LNG / U16_MAX - PI,
+            coord.lat as f64 * DELTA_LAT / U16_MAX - PI / 2.0,
+            coord.lng as f64 * DELTA_LNG / U16_MAX - PI
+        ).round() as u16
     } 
 }
 
 
 /// from https://rosettacode.org/wiki/Haversine_formula#Rust
-pub fn haversine_dist(mut th1: f64, mut ph1: f64, mut th2: f64, ph2: f64) -> f64 {
+pub fn haversine_dist(th1: f64, mut ph1: f64, th2: f64, ph2: f64) -> f64 {
     ph1 -= ph2;
-    ph1 = ph1.to_radians();
-    th1 = th1.to_radians();
-    th2 = th2.to_radians();
     let dz: f64 = th1.sin() - th2.sin();
     let dx: f64 = ph1.cos() * th1.cos() - th2.cos();
     let dy: f64 = ph1.sin() * th1.cos();

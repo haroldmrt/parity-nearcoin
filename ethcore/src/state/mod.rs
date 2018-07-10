@@ -673,9 +673,16 @@ impl<B: Backend> State<B> {
 	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
 		let d = self.distance(from, to).unwrap();
-		let amount = (U256::from(1000) - d) * *by / U256::from(1000);
-		// demurred amount = by - amount
-		// self.add_balance(0xffffff, demurred_amount, cleanup_mode)
+		let amount; 
+		if d >= U256::from(1000) {
+			amount = U256::from(0);
+		} else {
+			amount = (U256::from(1000) - d) * *by / U256::from(1000);
+		}
+		let demurred_amount = *by - amount;
+		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
+		// Does this CleanupMode work ?
+		self.add_balance(&location_address, &demurred_amount, CleanupMode::NoEmpty)?;
 		self.add_balance(to, &amount, cleanup_mode)?;
 		Ok(())
 	}
