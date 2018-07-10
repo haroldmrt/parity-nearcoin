@@ -435,32 +435,47 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		// backup used in case of running out of gas
 		self.state.checkpoint();
-
 		let schedule = self.machine.schedule(self.info.number);
 
-		// temp location setting
-		// checkpoint utility ?
-		if params.address == Address::from("ffffffffffffffffffffffffffffffffffffffff") {
-			if let Some(data) = params.data { // Coordinates::from()
-				if data.len() != 4 {
+		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
+
+		if params.address == location_address {
+			// TODO : check if params.origin is a validator
+			if self.state.is_validator(&params.origin) {
+				if let Some(data) = params.data { 
+					// len(location+address) = 24
+					if data.len() == 24 {
+						// TODO : check if location = 0
+						// TODO : check if location in range of validator ? 
+						let location = Coordinates::from(H32::from_slice(&data[20..24]));
+						let a = Address::from(&data[0..20]);
+						self.state.set_location(&a, location)?;
+
+						// Pay validator
+						// todo : payout values
+						let payout = U256::from(1); //temp payout
+						if self.state.balance(&location_address).unwrap() > payout {
+							self.state.transfer_balance(&location_address, &params.origin, &payout, substate.to_cleanup_mode(&schedule))?;
+						}
+
+						self.state.discard_checkpoint();
+						return Ok(FinalizationResult {
+							gas_left: params.gas,
+							return_data: ReturnData::empty(),
+							apply_state: true,
+						});
+					} // else if data.len==?? // addValidator message
+					else { // return Ok with apply_state = false ?
+						self.state.revert_to_checkpoint();
+						return Err(vm::Error::BuiltIn("Incorrect data"));
+					}
+				} else {
 					self.state.revert_to_checkpoint();
-					return Err(vm::Error::BuiltIn("Incorrect location"));
+					return Err(vm::Error::BuiltIn("No data"));
 				}
-				if data == [0, 0, 0, 0] {
-					self.state.revert_to_checkpoint();
-					return Err(vm::Error::BuiltIn("Cannot set empty location")); // empty location is None not Some({0, 0})
-				}
-				let location = Coordinates::from(H32::from_slice(&data));
-				self.state.set_location(&params.origin, location)?;
-				self.state.discard_checkpoint();
-				return Ok(FinalizationResult {
-					gas_left: params.gas,
-					return_data: ReturnData::empty(),
-					apply_state: true,
-				});
 			} else {
 				self.state.revert_to_checkpoint();
-				return Err(vm::Error::BuiltIn("Incorrect location"));
+				return Err(vm::Error::BuiltIn("No right to change location"));
 			}
 		}
 
