@@ -5,9 +5,18 @@ WORKDIR /build
 ARG BUILD_TAG
 ENV BUILD_TAG ${BUILD_TAG:-master}
 RUN echo "Build tag:" $BUILD_TAG
-# install tools and dependencies
+# install ssh
 RUN apt-get update && \
-        apt-get install -y --force-yes --no-install-recommends \
+	apt-get install -y --force-yes --no-install-recommends openssh-client
+# add credentials on build
+ARG SSH_PRIVATE_KEY
+RUN mkdir /root/.ssh/ && \
+	echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
+	chmod 700 /root/.ssh/id_rsa && \
+	touch /root/.ssh/known_hosts && \
+	ssh-keyscan gricad-gitlab.univ-grenoble-alpes.fr >> /root/.ssh/known_hosts
+# install tools and dependencies
+RUN apt-get install -y --force-yes --no-install-recommends \
         # make
         build-essential \
         # add-apt-repository
@@ -35,7 +44,7 @@ RUN apt-get update && \
 # show backtraces
  RUST_BACKTRACE=1 && \
 # build parity
-cd /build&&git clone https://github.com/paritytech/parity && \
+cd /build&&git clone git@gricad-gitlab.univ-grenoble-alpes.fr:mertzweh/parity.git && \
         cd parity && \
 	git pull&& \
 	git checkout $BUILD_TAG && \
