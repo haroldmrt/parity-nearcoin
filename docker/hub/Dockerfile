@@ -48,7 +48,7 @@ cd /build&&git clone git@gricad-gitlab.univ-grenoble-alpes.fr:mertzweh/parity.gi
         cd parity && \
 	git pull&& \
 	git checkout $BUILD_TAG && \
-        cargo build --verbose --release --features final && \
+        cargo build --release && \
         #ls /build/parity/target/release/parity && \
         strip /build/parity/target/release/parity && \
  file /build/parity/target/release/parity&&mkdir -p /parity&& cp /build/parity/target/release/parity /parity&&\
