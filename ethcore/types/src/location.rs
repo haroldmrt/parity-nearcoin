@@ -87,6 +87,11 @@ impl Coordinates {
     pub fn new() -> Coordinates {
         Coordinates {lat:0, lng:0}
     }
+
+    // Constructor
+    pub fn from_raw(lat: u16, lng: u16) -> Coordinates {
+        Coordinates {lat: lat, lng: lng}
+    }
     
     /// Compute distance with Haversine formula between self and argument
     /// TODO : make the computation consensus-safe (through builtin ?)
