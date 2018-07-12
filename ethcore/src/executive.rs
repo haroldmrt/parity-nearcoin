@@ -313,10 +313,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut out = if output_from_create { Some(vec![]) } else { None };
 				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
-			// 
-			// Temporary fool code
 			// Action::Locate | Action::Call(&Address::from("ffffffffffffffffffffffffffffffffffffffff")) =>
-			Action::Locate => { // (vm::Result<FinalizationResult>, Bytes)
+			Action::Locate => {
 				let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
 				let params = ActionParams {
 					code_address: address.clone(),
@@ -335,8 +333,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			},
-			Action::Call(ref address) if address == &Address::from("ffffffffffffffffffffffffffffffffffffffff") => { // (vm::Result<FinalizationResult>, Bytes)
-				// let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
+			Action::Call(ref address) if address == &Address::from("ffffffffffffffffffffffffffffffffffffffff") => {
 				let params = ActionParams {
 					code_address: address.clone(),
 					address: address.clone(),
@@ -440,7 +437,6 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
 
 		if params.address == location_address {
-			// TODO : check if params.origin is a validator
 			if self.state.is_validator(&params.origin) {
 				if let Some(data) = params.data { 
 					// len(location+address) = 24
@@ -451,9 +447,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 						let a = Address::from(&data[0..20]);
 						self.state.set_location(&a, location)?;
 
-						// Pay validator
-						// todo : payout values
-						let payout = U256::from(1); //temp payout
+						// Pay validator: arbitrary payout of 1 milliether
+						let payout = U256::from(10_u64.pow(15));
 						if self.state.balance(&location_address).unwrap() > payout {
 							self.state.transfer_balance(&location_address, &params.origin, &payout, substate.to_cleanup_mode(&schedule))?;
 						}
