@@ -1,168 +1,117 @@
-# Parity - fast, light, and robust Ethereum client
+# Parity - fast, light, and robust Ethereum client - Nearcoin fork
 
-## [» Download the latest release «](https://github.com/paritytech/parity/releases/latest)
+Parity is one of the main Ethereum client.
+This is a fork of this client implementing local and timed demurrage.
 
-[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
-[![codecov](https://codecov.io/gh/paritytech/parity/branch/master/graph/badge.svg)](https://codecov.io/gh/paritytech/parity)
-[![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
-[![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+## Build instructions
 
-
-### Join the chat!
-
-Get in touch with us on Gitter:
-[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
-[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
-[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
-[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
-
-Or join our community on Matrix:
-[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
-
-Official website: https://parity.io | Be sure to check out [our wiki](https://wiki.parity.io) for more information.
-
-----
-
-## About Parity
-
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
-
-From Parity Ethereum client version 1.10.0, the User Interface (UI) is accessible in a separate application called Parity UI. To keep using the UI in the browser (deprecated), [follow these steps](https://wiki.parity.io/FAQ-Basic-Operations,-Configuration,-and-Synchronization#the-parity-ui-application-isnt-working-the-way-i-want).
-
-By default, Parity will also run a JSONRPC server on `127.0.0.1:8545` and a websockets server on `127.0.0.1:8546`. This is fully configurable and supports a number of APIs.
-
-If you run into an issue while using Parity, feel free to file one in this repository or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.MD](SECURITY.md).
-
-Parity's current beta-release is 1.11. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
-
-----
-
-## Build dependencies
-
-**Parity requires Rust version 1.26.0 to build**
-
-We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
-
-- Linux:
-	```bash
-	$ curl https://sh.rustup.rs -sSf | sh
-	```
-
-	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
-
-- OSX:
-	```bash
-	$ curl https://sh.rustup.rs -sSf | sh
-	```
-
-	`clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
-
-- Windows
-  Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
-	https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe, start "VS2015 x64 Native Tools Command Prompt", and use the following command to install and set up the msvc toolchain:
-  ```bash
-	$ rustup default stable-x86_64-pc-windows-msvc
-  ```
-
-Once you have rustup installed, then you need to install:
-* [Perl](https://www.perl.org)
-* [Yasm](http://yasm.tortall.net)
-
-Make sure that these binaries are in your `PATH`. After that you should be able to build parity from source.
-
-----
-
-## Install from the snap store
-
-In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+### Install Rust
 
 ```bash
-sudo snap install parity
+curl https://sh.rustup.rs -sSf | sh
 ```
 
-Or, if you want to contribute testing the upcoming release:
+### Compile and run Nearcoin node
 
 ```bash
-sudo snap install parity --beta
+cargo run -- --chain nearcoin --jsonrpc-cors all --jsonrpc-apis all --bootnodes enode://712e630b133189ef4a7976d4a9fc26c41014527919d9c63bd4f6a4be70c92f28cee3932835798d950f055a9321e69aaef2e1d3f4cee5159c185f1f4ccdf1a3fe@IP_ADDRESS:30303
 ```
 
-And to test the latest code landed into the master branch:
+- `cargo run` build and execute the project. Arguments after `--` are passed to the compiled binary.
+- `--bootnodes` is followed by an enode address list.
+- You can mine on the chain with the option `--engine-signer 0xADDRESS --password ./pass.txt` (`pass.txt` contains passphrase of the 0xADDRESS account). 0xADDRESS has to be an authority on the chain (authorities are set in `ethcore/res/ethereum/nearcoin.json`)
+
+## How to interact with node
+
+### Option 1: utiliser la page web <https://dev.nas.mrtz.fr/nearcoin/>
+
+Ouvrir les outils dévelopeurs du navigateur avec F12 en rentrer les commandes depuis l'onglet Console.
+
+Cette page permet d'intéragir avec un noeud Nearcoin lancé en local sur l'ordinateur.
+
+### Option 2: installer nodejs et le module web3
+
+```html
+https://nodejs.org/en/download/package-manager/
+```
+
+Installer le module web3 avec la commande (*installation dans le dossier courant*):
 
 ```bash
-sudo snap install parity --edge
+npm install web3
 ```
 
-----
+(pour une installation globale, utiliser `sudo npm -g install web3`)
 
-## Build from source
+Lancer la console nodejs avec `node`.
 
-```bash
-# download Parity code
-$ git clone https://github.com/paritytech/parity
-$ cd parity
+Importer le module et se connecter au noeud Nearcoin précédemment lancé (ici en local)
 
-# build in release mode
-$ cargo build --release
+```js
+var Web3 = require('web3')
+web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 ```
 
-This will produce an executable in the `./target/release` subdirectory.
+Le shell est maintenant utilisable.
 
-Note: if cargo fails to parse manifest try:
+### Option 3: utiliser la page web du repo stage_fonte
 
-```bash
-$ ~/.cargo/bin/cargo build --release
+La page web de l'option 1 est disponible dans le repo stage_fonte, dans le dossier frontend.
+
+Il faut servir le dossier frontend, par exemple ave `php -s localhost:8000`
+
+## Interaction avec le noeud Nearcoin: commandes
+
+- Créer un compte
+
+```js
+web3.eth.personal.newAccount(passphrase)
 ```
 
-Note, when compiling a crate and you receive errors, it's in most cases your outdated version of Rust, or some of your crates have to be recompiled. Cleaning the repository will most likely solve the issue if you are on the latest stable version of Rust, try:
+- Récupérer les comptes personnels
 
-```bash
-$ cargo clean
+```js
+var accounts = []
+web3.eth.personal.getAccounts().then(res => accounts=res)
 ```
 
-This will always compile the latest nightly builds. If you want to build stable or beta, do a
+- Effectuer une transaction
 
-```bash
-$ git checkout stable
+```js
+web3.eth.personal.sendTransaction({from: accounts[0], to: accounts[1], value: 1000}, passphrase_de_accounts[0])
 ```
 
-or
+- Obtenir la balance d'un compte
 
-```bash
-$ git checkout beta
+```js
+web3.eth.getBalance(account).then(res => console.log(res))
 ```
 
-first.
+- Obtenir le numéro du bloc courant
 
-----
-
-## Simple one-line installer for Mac and Ubuntu
-
-```bash
-bash <(curl https://get.parity.io -L)
+```js
+web3.eth.getBlockNumber().then(n => console.log(n));
 ```
 
-The one-line installer always defaults to the latest beta release. To install a stable release, run:
+- Fixer une localisation
 
-```bash
-bash <(curl https://get.parity.io -L) -r stable
+```js
+web3.eth.personal.sendTransaction({from: validator, to: "0xffffffffffffffffffffffffffffffffffffffff", data: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLLLLLLL'}, passphrase_de_validator)
 ```
 
-## Start Parity
+- Envoyer une transaction de test
 
-### Manually
-
-To start Parity manually, just run
-
-```bash
-$ ./target/release/parity
+```js
+web3.eth.personal.sendTransaction({from: accounts[0], to: "0xDf0B3cC84f07B06c1B87b629C4E0537e1AdD28BC", value: 100}, passphrase)
 ```
 
-and Parity will begin syncing the Ethereum blockchain.
+```js
+web3.eth.getBalance("0xffffffffffffffffffffffffffffffffffffffff").then(res => console.log(res))
+```
 
-### Using systemd service file
+(les 20 premiers octets sont l'adresse et les 4 derniers les coordonnées géographiques)
 
-To start Parity as a regular user using systemd init:
+## Notes
 
-1. Copy `./scripts/parity.service` to your
-systemd user directory (usually `~/.config/systemd/user`).
-2. To configure Parity, write a `/etc/parity/config.toml` config file, see [Configuring Parity](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+- Les fichiers de configuration sont situés dans `~/.local/share/io.parity.ethereum/`. Par exemple les clefs privées des comptes créés sont dans `~/.local/share/io.parity.ethereum/keys/nearcoin/`.
+- .
