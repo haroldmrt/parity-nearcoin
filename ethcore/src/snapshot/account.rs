@@ -22,6 +22,7 @@ use snapshot::Error;
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 
 use ethereum_types::{H256, U256};
+use location::Coordinates;
 use hashdb::HashDB;
 use bytes::Bytes;
 use trie::{TrieDB, Trie};
@@ -35,6 +36,7 @@ const ACC_EMPTY: BasicAccount = BasicAccount {
 	balance: U256([0, 0, 0, 0]),
 	storage_root: KECCAK_NULL_RLP,
 	code_hash: KECCAK_EMPTY,
+	location: None,
 };
 
 // whether an encoded account has code and how it is referred to.
@@ -75,10 +77,11 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 	let mut leftover: Option<Vec<u8>> = None;
 	loop {
 		account_stream.append(account_hash);
-		account_stream.begin_list(5);
+		account_stream.begin_list(6);
 
 		account_stream.append(&acc.nonce)
-					  .append(&acc.balance);
+					  .append(&acc.balance)
+					  .append(&acc.location);
 
 		// [has_code, code_hash].
 		if acc.code_hash == KECCAK_EMPTY {
@@ -160,8 +163,9 @@ pub fn from_fat_rlp(
 
 	let nonce = rlp.val_at(0)?;
 	let balance = rlp.val_at(1)?;
+	let location = rlp.val_at(2)?;
 	let code_state: CodeState = {
-		let raw: u8 = rlp.val_at(2)?;
+		let raw: u8 = rlp.val_at(3)?;
 		CodeState::from(raw)?
 	};
 
@@ -169,13 +173,13 @@ pub fn from_fat_rlp(
 	let (code_hash, new_code) = match code_state {
 		CodeState::Empty => (KECCAK_EMPTY, None),
 		CodeState::Inline => {
-			let code: Bytes = rlp.val_at(3)?;
+			let code: Bytes = rlp.val_at(4)?;
 			let code_hash = acct_db.insert(&code);
 
 			(code_hash, Some(code))
 		}
 		CodeState::Hash => {
-			let code_hash = rlp.val_at(3)?;
+			let code_hash = rlp.val_at(4)?;
 
 			(code_hash, None)
 		}
@@ -187,7 +191,7 @@ pub fn from_fat_rlp(
 		} else {
 			TrieDBMut::from_existing(acct_db, &mut storage_root)?
 		};
-		let pairs = rlp.at(4)?;
+		let pairs = rlp.at(5)?;
 		for pair_rlp in pairs.iter() {
 			let k: Bytes  = pair_rlp.val_at(0)?;
 			let v: Bytes = pair_rlp.val_at(1)?;
@@ -201,11 +205,12 @@ pub fn from_fat_rlp(
 		balance: balance,
 		storage_root: storage_root,
 		code_hash: code_hash,
+		location: location,
 	};
 
 	Ok((acc, new_code))
 }
-
+/* 
 #[cfg(test)]
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
@@ -354,3 +359,4 @@ mod tests {
 		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &Address::default()), Rlp::new(&::rlp::NULL_RLP), H256::zero()).unwrap(), (ACC_EMPTY, None));
 	}
 }
+ */

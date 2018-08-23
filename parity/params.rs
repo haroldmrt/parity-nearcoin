@@ -42,6 +42,7 @@ pub enum SpecType {
 	Easthub,
 	Social,
 	Dev,
+	Nearcoin,
 	Custom(String),
 }
 
@@ -68,6 +69,7 @@ impl str::FromStr for SpecType {
 			"easthub" => SpecType::Easthub,
 			"social" => SpecType::Social,
 			"dev" => SpecType::Dev,
+			"nearcoin" => SpecType::Nearcoin,
 			other => SpecType::Custom(other.into()),
 		};
 		Ok(spec)
@@ -89,6 +91,7 @@ impl fmt::Display for SpecType {
 			SpecType::Social => "social",
 			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
+			SpecType::Nearcoin => "nearcoin",
 			SpecType::Custom(ref custom) => custom,
 		})
 	}
@@ -110,6 +113,7 @@ impl SpecType {
 			SpecType::Social => Ok(ethereum::new_social(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
+			SpecType::Nearcoin => Ok(ethereum::new_nearcoin(params)),
 			SpecType::Custom(ref filename) => {
 				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
 				Spec::load(params, file)

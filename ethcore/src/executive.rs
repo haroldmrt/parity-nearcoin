@@ -34,6 +34,9 @@ use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
 
+use types::location::Coordinates;
+use ethereum_types::H32;
+
 #[cfg(debug_assertions)]
 /// Roughly estimate what stack size each level of evm depth will use. (Debug build)
 const STACK_SIZE_PER_DEPTH: usize = 128 * 1024;
@@ -310,6 +313,44 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				let mut out = if output_from_create { Some(vec![]) } else { None };
 				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
+			// Action::Locate | Action::Call(&Address::from("ffffffffffffffffffffffffffffffffffffffff")) =>
+			Action::Locate => {
+				let address = &Address::from("ffffffffffffffffffffffffffffffffffffffff");
+				let params = ActionParams {
+					code_address: address.clone(),
+					address: address.clone(),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: init_gas,
+					gas_price: t.gas_price,
+					value: ActionValue::Transfer(t.value),
+					code: self.state.code(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
+					data: Some(t.data.clone()),
+					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
+				};
+				let mut out = vec![];
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
+			},
+			Action::Call(ref address) if address == &Address::from("ffffffffffffffffffffffffffffffffffffffff") => {
+				let params = ActionParams {
+					code_address: address.clone(),
+					address: address.clone(),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: init_gas,
+					gas_price: t.gas_price,
+					value: ActionValue::Transfer(t.value),
+					code: self.state.code(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
+					data: Some(t.data.clone()),
+					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
+				};
+				let mut out = vec![];
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
+			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
 					code_address: address.clone(),
@@ -327,7 +368,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 				};
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
-			}
+			},
 		};
 
 		// finalize here!
@@ -391,11 +432,74 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		// backup used in case of running out of gas
 		self.state.checkpoint();
-
 		let schedule = self.machine.schedule(self.info.number);
+
+		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
+
+		if params.address == location_address {
+			if self.state.is_validator(&params.origin) {
+				if let Some(data) = params.data { 
+					// len(location+address) = 24
+					if data.len() == 24 {
+						// TODO : check if location = 0
+						// TODO : check if location in range of validator ? 
+						let location = Coordinates::from(H32::from_slice(&data[20..24]));
+						let a = Address::from(&data[0..20]);
+						self.state.set_location(&a, location)?;
+
+						// Pay validator: arbitrary payout of 1 milliether
+						let payout = U256::from(10_u64.pow(15));
+						if self.state.balance(&location_address).unwrap() > payout {
+							self.state.transfer_balance(&location_address, &params.origin, &payout, substate.to_cleanup_mode(&schedule))?;
+						}
+
+						self.state.discard_checkpoint();
+						return Ok(FinalizationResult {
+							gas_left: params.gas,
+							return_data: ReturnData::empty(),
+							apply_state: true,
+						});
+					} // else if data.len==?? // addValidator message
+					else { // return Ok with apply_state = false ?
+						self.state.revert_to_checkpoint();
+						return Err(vm::Error::BuiltIn("Incorrect data"));
+					}
+				} else {
+					self.state.revert_to_checkpoint();
+					return Err(vm::Error::BuiltIn("No data"));
+				}
+			} else {
+				self.state.revert_to_checkpoint();
+				return Err(vm::Error::BuiltIn("No right to change location"));
+			}
+		}
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
+			// sender or origin ? 
+			// TODO: error instead of {0, 0}
+			// if let Err(_) = self.state.location(&params.sender) {
+			if val != U256::from(0) {
+				if self.state.location(&params.sender).unwrap() == Coordinates::new() {
+					self.state.revert_to_checkpoint();
+					return Ok(FinalizationResult {
+						gas_left: params.gas,
+						return_data: ReturnData::empty(),
+						apply_state: false,
+					})
+					// return Err(vm::Error::BuiltIn("Sender have no location"));
+				}
+				// if let Err(_) = self.state.location(&params.address) {
+				if self.state.location(&params.address).unwrap() == Coordinates::new() {
+					self.state.revert_to_checkpoint();
+					return Ok(FinalizationResult {
+						gas_left: params.gas,
+						return_data: ReturnData::empty(),
+						apply_state: false,
+					})
+					// return Err(vm::Error::BuiltIn("Receiver have no location"));
+				}
+			}
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
 		}
 
@@ -464,7 +568,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 				Err(vm::Error::OutOfGas)
 			}
-		} else {
+		} else { // not builtin
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();

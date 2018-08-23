@@ -184,7 +184,8 @@ impl Transaction {
 			from: t.sender().into(),
 			to: match t.action {
 				Action::Create => None,
-				Action::Call(ref address) => Some(address.clone().into())
+				Action::Call(ref address) => Some(address.clone().into()),
+				Action::Locate => Some(H160::from("ffffffffffffffffffffffffffffffffffffffff")),
 			},
 			value: t.value.into(),
 			gas_price: t.gas_price.into(),
@@ -193,6 +194,7 @@ impl Transaction {
 			creates: match t.action {
 				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
+				Action::Locate => None,
 			},
 			raw: ::rlp::encode(&t.signed).into_vec().into(),
 			public_key: t.recover_public().ok().map(Into::into),
@@ -218,7 +220,8 @@ impl Transaction {
 			from: t.sender().into(),
 			to: match t.action {
 				Action::Create => None,
-				Action::Call(ref address) => Some(address.clone().into())
+				Action::Call(ref address) => Some(address.clone().into()),
+				Action::Locate => Some(H160::from("ffffffffffffffffffffffffffffffffffffffff")),
 			},
 			value: t.value.into(),
 			gas_price: t.gas_price.into(),
@@ -227,6 +230,7 @@ impl Transaction {
 			creates: match t.action {
 				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
+				Action::Locate => None,
 			},
 			raw: ::rlp::encode(&t).into_vec().into(),
 			public_key: t.public_key().map(Into::into),

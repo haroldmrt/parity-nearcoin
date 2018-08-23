@@ -223,6 +223,9 @@ impl Provider where {
 					status_code: 0,
 				})
 			}
+			Action::Locate => {
+				bail!(ErrorKind::BadTransactonType);
+			}
 		}
 	}
 
@@ -421,6 +424,7 @@ impl Provider where {
 				Some(*contract_address)
 			},
 			Action::Create => None,
+			Action::Locate => None,
 		};
 
 		let engine = self.client.engine();

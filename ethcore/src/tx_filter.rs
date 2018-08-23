@@ -67,7 +67,9 @@ impl TransactionFilter {
 				tx_permissions::CALL
 			} else {
 				tx_permissions::BASIC
-			}
+			},
+			// TODO: add correct permission !
+			Action::Locate => tx_permissions::BASIC
 		};
 
 		let sender = transaction.sender();

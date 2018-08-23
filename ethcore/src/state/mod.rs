@@ -47,12 +47,16 @@ use hashdb::{HashDB, AsHashDB};
 use kvdb::DBValue;
 use bytes::Bytes;
 
+use location::Coordinates;
+use self::validators::ValidatorSet;
+
 use trie;
 use trie::{Trie, TrieError, TrieDB};
 use trie::recorder::Recorder;
 
 mod account;
 mod substate;
+mod validators;
 
 pub mod backend;
 
@@ -313,6 +317,7 @@ pub struct State<B: Backend> {
 	checkpoints: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
+	validator_set: ValidatorSet,
 }
 
 #[derive(Copy, Clone)]
@@ -375,6 +380,7 @@ impl<B: Backend> State<B> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
+			validator_set: ValidatorSet::new(),
 		}
 	}
 
@@ -390,7 +396,8 @@ impl<B: Backend> State<B> {
 			cache: RefCell::new(HashMap::new()),
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
-			factories: factories
+			factories: factories,
+			validator_set: ValidatorSet::new(),
 		};
 
 		Ok(state)
@@ -533,6 +540,14 @@ impl<B: Backend> State<B> {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Get the location of account `a`
+	/// TODO: return error instead of {0, 0}
+	pub fn location(&self, a: &Address) -> trie::Result<Coordinates> {
+		// check_null = false because account is null before first tx
+		self.ensure_cached(a, RequireCache::None, false,
+			|a| a.as_ref().map_or(Coordinates::new(), |account| account.location().clone().unwrap_or(Coordinates::new())))
+	}
+
 	/// Get the storage root of account `a`.
 	pub fn storage_root(&self, a: &Address) -> trie::Result<Option<H256>> {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -646,10 +661,29 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
+	/// Compute distance between location of accounts `a` and `b`.
+	pub fn distance(&mut self, a: &Address, b: &Address) -> trie::Result<U256> {
+		let loc_a = self.location(a).unwrap(); // what is the error ?
+		let loc_b = self.location(b).unwrap();
+		Ok(U256::from(loc_a.distance(&loc_b)))
+	}
+
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to` after geographic demurrage.
+	/// Arithmetic operations are not necessarly consensus-safe
 	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, mut cleanup_mode: CleanupMode) -> trie::Result<()> {
 		self.sub_balance(from, by, &mut cleanup_mode)?;
-		self.add_balance(to, by, cleanup_mode)?;
+		let d = self.distance(from, to).unwrap();
+		let amount; 
+		if d >= U256::from(1000) {
+			amount = U256::from(0);
+		} else {
+			amount = (U256::from(1000) - d) * *by / U256::from(1000);
+		}
+		let demurred_amount = *by - amount;
+		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
+		// Does this CleanupMode work ?
+		self.add_balance(&location_address, &demurred_amount, CleanupMode::NoEmpty)?;
+		self.add_balance(to, &amount, cleanup_mode)?;
 		Ok(())
 	}
 
@@ -679,6 +713,18 @@ impl<B: Backend> State<B> {
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) -> trie::Result<()> {
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.reset_code(code);
 		Ok(())
+	}
+
+	/// Check if account `a` is a registered validator
+	pub fn is_validator(&self, a: &Address) -> bool {
+		self.validator_set.is_validator(a)
+	}
+
+	/// Set the location of account `a` so that it is `location`
+	pub fn set_location(&mut self, a: &Address, location: Coordinates) -> trie::Result<()> {
+		// self.require_or_from(a, false, || Account::new_contract(0.into(), self.account_start_nonce), |_|{})?.set_location(location);
+		// Ok(())
+		self.require(a, false).map(|mut x| x.set_location(location))
 	}
 
 	/// Execute a given transaction, producing a receipt and an optional trace.
@@ -881,11 +927,11 @@ impl<B: Backend> State<B> {
 					};
 
 					// Storage must be fetched after ensure_cached to avoid borrow problem.
-					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()))
+					(*acc.balance(), *acc.nonce(), all_keys, acc.code().map(|x| x.to_vec()), acc.location().clone())
 				})
 			})?;
 
-			if let Some((balance, nonce, storage_keys, code)) = account {
+			if let Some((balance, nonce, storage_keys, code, location)) = account {
 				let storage = storage_keys.into_iter().fold(Ok(BTreeMap::new()), |s: trie::Result<_>, key| {
 					let mut s = s?;
 
@@ -894,7 +940,7 @@ impl<B: Backend> State<B> {
 				})?;
 
 				m.insert(address, PodAccount {
-					balance, nonce, storage, code
+					balance, nonce, storage, code, location
 				});
 			}
 
@@ -966,6 +1012,7 @@ impl<B: Backend> State<B> {
 			Some(r) => Ok(r),
 			None => {
 				// first check if it is not in database for sure
+				// better solution: use self.db.add_to_account_cache when setting loc on a new account 
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
 				// not found in the global cache, get from the DB and insert into local
@@ -1064,6 +1111,7 @@ impl<B: Backend> State<B> {
 			nonce: self.account_start_nonce,
 			code_hash: KECCAK_EMPTY,
 			storage_root: KECCAK_NULL_RLP,
+			location: None,
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
@@ -1116,6 +1164,7 @@ impl Clone for State<StateDB> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
+			validator_set: self.validator_set.clone(),
 		}
 	}
 }
