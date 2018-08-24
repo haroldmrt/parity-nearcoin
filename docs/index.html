@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style media="screen" type="text/css">
+
+    </style>
+    <script src="./web3.min.js"></script>
+    <script>
+        web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
+        web3.eth.personal.getAccounts().then(res => a=res)
+    </script>
+</head>
+
+<body>
+    <h1>This page include web3.js library</h1>
+    <p>
+        It connects to <a href="http://localhost:8545">http://localhost:8545</a>, a Nearcoin node running on your computer.<br>
+        Use the developer tools (F12) to interact with the console.<br>
+        More informations provided <a href="https://gricad-gitlab.univ-grenoble-alpes.fr/mertzweh/parity/blob/master/README.md">here</a>.
+    </p>
+</body>
+
+</html>
