@@ -74,6 +74,8 @@ pub struct Account {
 	address_hash: Cell<Option<H256>>,
 	// Location
 	location: Option<Coordinates>,
+	// Last block demurrage was performed
+	last_demurrage: U256,
 }
 
 impl From<BasicAccount> for Account {
@@ -90,6 +92,7 @@ impl From<BasicAccount> for Account {
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 			location: basic.location,
+			last_demurrage: U256::from(0),
 		}
 	}
 }
@@ -110,6 +113,7 @@ impl Account {
 			code_filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 			location: Some(location),
+			last_demurrage: U256::from(0),
 		}
 	}
 
@@ -132,6 +136,7 @@ impl Account {
 			address_hash: Cell::new(None),
 			// TODO : add location in podaccount
 			location: pod.location,
+			last_demurrage: U256::from(0),
 		}
 	}
 
@@ -148,7 +153,8 @@ impl Account {
 			code_size: Some(0),
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
-			location: None
+			location: None,
+			last_demurrage: U256::from(0),
 		}
 	}
 
@@ -174,6 +180,7 @@ impl Account {
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 			location: None,
+			last_demurrage: U256::from(0),
 		}
 	}
 
@@ -385,6 +392,17 @@ impl Account {
 		self.balance = self.balance - *x;
 	}
 
+	// Hardcoded time demurrage function: ~ 2.6% per year with one blocke every 12 sec
+	/// Hardcoded time demurrage function
+	/// Panics if current block number is less or equal than last time it was demurred
+	pub fn time_demurrage(&mut self, block_number: U256) {
+		assert!(block_number > self.last_demurrage);
+		// U256::from(99_999_999) / U256::from(100_000_000)
+		let amount = U256::from( ( self.balance.low_u64() as f64 * (1.0 - (999 as f64 / 1000 as f64).powi((block_number - self.last_demurrage).low_u32() as i32)) ) as u64 );
+		self.sub_balance(&amount);
+		self.last_demurrage = block_number;
+	}
+
 	/// Set location
 	pub fn set_location(&mut self, coord: Coordinates) {
 		self.location = Some(coord);
@@ -447,7 +465,8 @@ impl Account {
 			code_cache: self.code_cache.clone(),
 			code_filth: self.code_filth,
 			address_hash: self.address_hash.clone(),
-			location: self.location.clone()
+			location: self.location.clone(),
+			last_demurrage: self.last_demurrage.clone(),
 		}
 	}
 

@@ -687,6 +687,19 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
+	/// Time demurrage
+	pub fn time_demurrage(&mut self, a: &Address, block_number: U256, cleanup_mode: &mut CleanupMode) -> trie::Result<()> {
+		trace!(target: "state", "time_demurrage({}, {}): {}", a, block_number, self.balance(a)?);
+		self.require(a, false)?.time_demurrage(block_number);
+		// if !self.exists(a)? {
+		// 	self.require(a, false)?.time_demurrage(block_number);
+		// }
+		// if let CleanupMode::TrackTouched(ref mut set) = *cleanup_mode {
+		// 	set.insert(*a);
+		// }
+		Ok(())
+	}
+
 	/// Increment the nonce of account `a` by 1.
 	pub fn inc_nonce(&mut self, a: &Address) -> trie::Result<()> {
 		self.require(a, false).map(|mut x| x.inc_nonce())

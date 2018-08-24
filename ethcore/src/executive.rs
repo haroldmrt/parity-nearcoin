@@ -291,6 +291,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		if !schedule.eip86 || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
+
+		// Time demurrage:
+		self.state.time_demurrage(&sender, U256::from(self.info.number), &mut substate.to_cleanup_mode(&schedule))?;
 		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
 
 		let (result, output) = match t.action {
