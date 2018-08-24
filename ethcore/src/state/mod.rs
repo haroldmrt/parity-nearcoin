@@ -48,7 +48,7 @@ use kvdb::DBValue;
 use bytes::Bytes;
 
 use location::Coordinates;
-use self::validators::ValidatorSet;
+use self::endorsers::EndorserSet;
 
 use trie;
 use trie::{Trie, TrieError, TrieDB};
@@ -56,7 +56,7 @@ use trie::recorder::Recorder;
 
 mod account;
 mod substate;
-mod validators;
+mod endorsers;
 
 pub mod backend;
 
@@ -317,7 +317,7 @@ pub struct State<B: Backend> {
 	checkpoints: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
-	validator_set: ValidatorSet,
+	endorser_set: EndorserSet,
 }
 
 #[derive(Copy, Clone)]
@@ -380,7 +380,7 @@ impl<B: Backend> State<B> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
-			validator_set: ValidatorSet::new(),
+			endorser_set: EndorserSet::new(),
 		}
 	}
 
@@ -397,7 +397,7 @@ impl<B: Backend> State<B> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
-			validator_set: ValidatorSet::new(),
+			endorser_set: EndorserSet::new(),
 		};
 
 		Ok(state)
@@ -715,9 +715,9 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	/// Check if account `a` is a registered validator
-	pub fn is_validator(&self, a: &Address) -> bool {
-		self.validator_set.is_validator(a)
+	/// Check if account `a` is a registered endorser
+	pub fn is_endorser(&self, a: &Address) -> bool {
+		self.endorser_set.is_endorser(a)
 	}
 
 	/// Set the location of account `a` so that it is `location`
@@ -1164,7 +1164,7 @@ impl Clone for State<StateDB> {
 			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
-			validator_set: self.validator_set.clone(),
+			endorser_set: self.endorser_set.clone(),
 		}
 	}
 }

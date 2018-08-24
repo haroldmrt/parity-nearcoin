@@ -4,26 +4,27 @@ use std::result::Result;
 use error::Error;
 
 
-/// Single validator
-pub struct Validator {
+/// Single endorser
+pub struct Endorser {
     a: Address,
     loc: Coordinates,
     radius: u16,
 }
 
-/// Validator set
+/// Endorser set
 /// TODO: use HashMap (or another collection) instead ov Vec 
 /// (this implementation is very slow)
-pub struct ValidatorSet {
-    set: Vec<Validator>,
+pub struct EndorserSet {
+    set: Vec<Endorser>,
 }
 
-impl ValidatorSet {
+impl EndorserSet {
     /// General constructor
-    pub fn new() -> ValidatorSet {
-        ValidatorSet {
+    /// For now endorser 0x7fd56769443e390145a66f0c540d848b54610848 is hardcoded
+    pub fn new() -> EndorserSet {
+        EndorserSet {
             set: vec![
-                Validator {
+                Endorser {
                     a: Address::from("7fd56769443e390145a66f0c540d848b54610848"),
                     loc: Coordinates::from_raw(0x1000, 0x2000),
                     radius: 1000u16,
@@ -31,7 +32,7 @@ impl ValidatorSet {
             ],
         }
     }
-    pub fn is_validator(&self, a: &Address) -> bool {
+    pub fn is_endorser(&self, a: &Address) -> bool {
         // TODO: replace Vec by HashMap
         for v in &self.set {
             if &v.a == a {
@@ -41,8 +42,8 @@ impl ValidatorSet {
         return false;
     }
 
-    pub fn add_validator(&mut self, a: &Address, loc: &Coordinates, radius: u16) -> Result<(), Error> {
-        let v = Validator {
+    pub fn add_endorser(&mut self, a: &Address, loc: &Coordinates, radius: u16) -> Result<(), Error> {
+        let v = Endorser {
             a: a.clone(),
             loc: loc.clone(),
             radius: radius,
@@ -51,18 +52,18 @@ impl ValidatorSet {
         Ok(())
     }
 
-    pub fn can_validate(&self, validator: &Address, loc: &Coordinates) -> bool {
+    pub fn can_validate(&self, endorser: &Address, loc: &Coordinates) -> bool {
         // TODO: replace Vec by HashMap
-        // let validator_location;
-        // let validator_radius;
+        // let endorser_location;
+        // let endorser_radius;
         // for v in &self.set {
-        //     if &v.a == validator {
-        //         validator_location = &v.loc;
-        //         validator_radius = v.radius;
+        //     if &v.a == endorser {
+        //         endorser_location = &v.loc;
+        //         endorser_radius = v.radius;
         //     }
         // }
 
-        // if loc.distance(validator_location) < validator_radius {
+        // if loc.distance(endorser_location) < endorser_radius {
         //     true
         // } else {
         //     false
@@ -71,17 +72,17 @@ impl ValidatorSet {
     }
 }
 
-impl Clone for ValidatorSet {
-    fn clone(&self) -> ValidatorSet {
-        ValidatorSet {
+impl Clone for EndorserSet {
+    fn clone(&self) -> EndorserSet {
+        EndorserSet {
             set: self.set.clone(),
         }
     }
 }
 
-impl Clone for Validator {
-    fn clone(&self) -> Validator {
-        Validator {
+impl Clone for Endorser {
+    fn clone(&self) -> Endorser {
+        Endorser {
             a: self.a.clone(),
             loc: self.loc.clone(),
             radius: self.radius.clone(),

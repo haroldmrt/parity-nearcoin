@@ -437,17 +437,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		let location_address = Address::from("ffffffffffffffffffffffffffffffffffffffff");
 
 		if params.address == location_address {
-			if self.state.is_validator(&params.origin) {
+			if self.state.is_endorser(&params.origin) {
 				if let Some(data) = params.data { 
 					// len(location+address) = 24
 					if data.len() == 24 {
 						// TODO : check if location = 0
-						// TODO : check if location in range of validator ? 
+						// TODO : check if location in range of endorser ? 
 						let location = Coordinates::from(H32::from_slice(&data[20..24]));
 						let a = Address::from(&data[0..20]);
 						self.state.set_location(&a, location)?;
 
-						// Pay validator: arbitrary payout of 1 milliether
+						// Pay endorser: arbitrary payout of 1 milliether
 						let payout = U256::from(10_u64.pow(15));
 						if self.state.balance(&location_address).unwrap() > payout {
 							self.state.transfer_balance(&location_address, &params.origin, &payout, substate.to_cleanup_mode(&schedule))?;
