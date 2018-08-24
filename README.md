@@ -23,8 +23,9 @@ cargo run -- --chain nearcoin --jsonrpc-cors all --jsonrpc-apis all --bootnodes 
 
 ## How to interact with node
 
-### Option 1: utiliser la page web <https://dev.nas.mrtz.fr/nearcoin/>
+### Option 1: use <https://haroldmrt.github.io/parity-nearcoin/>
 
+Enter commands in developer tools 
 Ouvrir les outils dévelopeurs du navigateur avec F12 en rentrer les commandes depuis l'onglet Console.
 
 Cette page permet d'intéragir avec un noeud Nearcoin lancé en local sur l'ordinateur.
@@ -35,83 +36,63 @@ Cette page permet d'intéragir avec un noeud Nearcoin lancé en local sur l'ordi
 https://nodejs.org/en/download/package-manager/
 ```
 
-Installer le module web3 avec la commande (*installation dans le dossier courant*):
+Install web3 module with this command (local install):
 
 ```bash
 npm install web3
 ```
 
-(pour une installation globale, utiliser `sudo npm -g install web3`)
+Run nodejs console with `node`.
 
-Lancer la console nodejs avec `node`.
-
-Importer le module et se connecter au noeud Nearcoin précédemment lancé (ici en local)
+Import module and connect to the running Nearcoin node:
 
 ```js
 var Web3 = require('web3')
 web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"))
 ```
 
-Le shell est maintenant utilisable.
-
-### Option 3: utiliser la page web du repo stage_fonte
-
-La page web de l'option 1 est disponible dans le repo stage_fonte, dans le dossier frontend.
-
-Il faut servir le dossier frontend, par exemple ave `php -s localhost:8000`
-
 ## Interaction avec le noeud Nearcoin: commandes
 
-- Créer un compte
+- Create an account
 
 ```js
 web3.eth.personal.newAccount(passphrase)
 ```
 
-- Récupérer les comptes personnels
+- Get personal accounts
 
 ```js
 var accounts = []
 web3.eth.personal.getAccounts().then(res => accounts=res)
 ```
 
-- Effectuer une transaction
+- Make transaction
 
 ```js
 web3.eth.personal.sendTransaction({from: accounts[0], to: accounts[1], value: 1000}, passphrase_de_accounts[0])
 ```
 
-- Obtenir la balance d'un compte
+- Get balance
 
 ```js
 web3.eth.getBalance(account).then(res => console.log(res))
 ```
 
-- Obtenir le numéro du bloc courant
+- Get current block number
 
 ```js
 web3.eth.getBlockNumber().then(n => console.log(n));
 ```
 
-- Fixer une localisation
+- Set location (need to be an endorser)
 
 ```js
-web3.eth.personal.sendTransaction({from: validator, to: "0xffffffffffffffffffffffffffffffffffffffff", data: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLLLLLLL'}, passphrase_de_validator)
+web3.eth.personal.sendTransaction({from: endorser, to: "0xffffffffffffffffffffffffffffffffffffffff", data: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLLLLLLL'}, endorser_passphrase)
 ```
 
-- Envoyer une transaction de test
-
-```js
-web3.eth.personal.sendTransaction({from: accounts[0], to: "0xDf0B3cC84f07B06c1B87b629C4E0537e1AdD28BC", value: 100}, passphrase)
-```
-
-```js
-web3.eth.getBalance("0xffffffffffffffffffffffffffffffffffffffff").then(res => console.log(res))
-```
-
-(les 20 premiers octets sont l'adresse et les 4 derniers les coordonnées géographiques)
+First 20 bytes are the address and last 4 are the geographic coordinates
 
 ## Notes
 
-- Les fichiers de configuration sont situés dans `~/.local/share/io.parity.ethereum/`. Par exemple les clefs privées des comptes créés sont dans `~/.local/share/io.parity.ethereum/keys/nearcoin/`.
+- Config files are located in `~/.local/share/io.parity.ethereum/`. For examples private keys are in `~/.local/share/io.parity.ethereum/keys/nearcoin/`.
 - .
